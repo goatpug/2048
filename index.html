@@ -572,6 +572,7 @@ let activeNoUndo = false;
 
 let phase = 'playing';  // 'playing' | 'over'
 let locked = false;
+let queuedMove = null;
 
 // ═══════════════════════════════════════════════════════
 // SLIDE LOGIC (pure)
@@ -603,7 +604,8 @@ function slideRow(cells) {
 // APPLY MOVE
 // ═══════════════════════════════════════════════════════
 function applyMove(dir) {
-  if (phase === 'over' || locked) return;
+  if (phase === 'over') return;
+  if (locked) { queuedMove = dir; return; }
 
   // position → tile lookup
   const posMap = {};
@@ -740,6 +742,11 @@ function applyMove(dir) {
     }
 
     locked = false;
+    if (queuedMove) {
+      const next = queuedMove;
+      queuedMove = null;
+      applyMove(next);
+    }
   }, 100);
 }
 
@@ -808,8 +815,9 @@ var G = {
     undoStack = [];
     tiles     = [];
     tileId    = 0;
-    phase     = 'playing';
-    locked    = false;
+    phase      = 'playing';
+    locked     = false;
+    queuedMove = null;
 
     activeCrazy  = settings.crazy;
     activeNoUndo = settings.noUndo;
