@@ -201,6 +201,40 @@
     .tile.anim-spawn { animation: spawnIn 200ms ease forwards; }
     .tile.anim-pop   { animation: popMerge 220ms ease forwards; }
 
+    /* ── HEADER RIGHT ── */
+    #header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #undo-btn { flex: none; }
+
+    /* ── STUCK BANNER ── */
+    #stuck-banner {
+      display: none;
+      background: linear-gradient(135deg, #7a1a1a, #3a0808);
+      color: #ffcccc;
+      text-align: center;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    #stuck-banner.visible { display: block; }
+
+    .btn-link {
+      background: none;
+      border: none;
+      color: #ffaaaa;
+      font-weight: 700;
+      font-size: inherit;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 0;
+    }
+    .btn-link:active { opacity: 0.7; }
+
     /* ── CONTROLS ── */
     #controls {
       display: flex;
@@ -411,15 +445,18 @@
         <span id="badge-noundo" class="mode-badge" title="No Undo active">🔒</span>
       </div>
     </div>
-    <div id="scores">
-      <div class="score-box">
-        <div class="score-label">Score</div>
-        <div class="score-value" id="score-el">0</div>
+    <div id="header-right">
+      <div id="scores">
+        <div class="score-box">
+          <div class="score-label">Score</div>
+          <div class="score-value" id="score-el">0</div>
+        </div>
+        <div class="score-box">
+          <div class="score-label">Best</div>
+          <div class="score-value" id="best-el">0</div>
+        </div>
       </div>
-      <div class="score-box">
-        <div class="score-label">Best</div>
-        <div class="score-value" id="best-el">0</div>
-      </div>
+      <button id="undo-btn" class="btn" onclick="G.undo()">↩ (0)</button>
     </div>
   </div>
 
@@ -433,9 +470,11 @@
     </div>
   </div>
 
+  <!-- STUCK BANNER -->
+  <div id="stuck-banner">No moves left — <button class="btn-link" onclick="G.undo()">Undo</button> or <button class="btn-link" onclick="UI.endGame()">End Game</button></div>
+
   <!-- CONTROLS -->
   <div id="controls">
-    <button id="undo-btn" class="btn" onclick="G.undo()">↩ (0)</button>
     <button class="btn" onclick="G.confirmNew()">New 🦠</button>
     <button class="btn" onclick="UI.openMenu()">Menu</button>
   </div>
@@ -735,12 +774,13 @@ function applyMove(dir) {
       document.getElementById('win-banner').classList.add('visible');
     }
 
-    // Game over check
+    // Game over check — show banner instead of auto-triggering parade
     if (isOver()) {
       phase = 'over';
-      setTimeout(showGameOver, 350);
+      document.getElementById('stuck-banner').classList.add('visible');
     }
 
+    saveGameState();
     locked = false;
     if (queuedMove) {
       const next = queuedMove;
@@ -790,15 +830,17 @@ var G = {
     }
 
     phase = 'playing';
+    document.getElementById('stuck-banner').classList.remove('visible');
 
     if (!wonShown) document.getElementById('win-banner').classList.remove('visible');
 
     refreshScores();
     refreshUndoBtn();
+    saveGameState();
   },
 
   confirmNew() {
-    if (moves === 0 || phase === 'over') { this.startNew(); return; }
+    if (moves === 0) { this.startNew(); return; }
     if (confirm('Start a new game? Progress will be lost.')) this.startNew();
   },
 
@@ -825,6 +867,7 @@ var G = {
     // Clear DOM tiles
     document.querySelectorAll('.tile').forEach(el => el.remove());
     document.getElementById('win-banner').classList.remove('visible');
+    document.getElementById('stuck-banner').classList.remove('visible');
 
     // Board glow
     document.getElementById('board-bg').classList.toggle('crazy-glow', activeCrazy);
@@ -842,8 +885,73 @@ var G = {
 
     refreshScores();
     refreshUndoBtn();
+    localStorage.removeItem('evo2048_game');
   }
 };
+
+// ═══════════════════════════════════════════════════════
+// STATE PERSISTENCE
+// ═══════════════════════════════════════════════════════
+function saveGameState() {
+  if (phase === 'over' && undoStack.length === 0) return; // nothing to restore to
+  try {
+    localStorage.setItem('evo2048_game', JSON.stringify({
+      board, score, moves, undos, topTile, creatures, wonShown,
+      activeCrazy, activeNoUndo, phase,
+      tiles: tiles.map(t => ({...t})),
+      tileId,
+      undoStack: undoStack.map(s => ({
+        board: s.board.map(r => [...r]),
+        score: s.score,
+        tiles: s.tiles.map(t => ({...t})),
+        moves: s.moves,
+        topTile: s.topTile,
+        creatures: {...s.creatures},
+        wonShown: s.wonShown
+      }))
+    }));
+  } catch(e) { /* storage full, non-fatal */ }
+}
+
+function restoreGameState() {
+  try {
+    const raw = localStorage.getItem('evo2048_game');
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+
+    board        = s.board;
+    score        = s.score;
+    moves        = s.moves;
+    undos        = s.undos;
+    topTile      = s.topTile;
+    creatures    = s.creatures;
+    wonShown     = s.wonShown;
+    activeCrazy  = s.activeCrazy;
+    activeNoUndo = s.activeNoUndo;
+    phase        = s.phase;
+    tileId       = s.tileId;
+    undoStack    = s.undoStack;
+    tiles        = s.tiles;
+
+    // Rebuild tile DOM
+    document.querySelectorAll('.tile').forEach(el => el.remove());
+    for (const tile of tiles) {
+      document.getElementById('board-bg').appendChild(makeTileEl(tile, false));
+    }
+
+    // Apply mode UI
+    document.getElementById('board-bg').classList.toggle('crazy-glow', activeCrazy);
+    document.getElementById('undo-btn').style.display = activeNoUndo ? 'none' : '';
+    document.getElementById('badge-crazy').classList.toggle('active', activeCrazy);
+    document.getElementById('badge-noundo').classList.toggle('active', activeNoUndo);
+    if (wonShown) document.getElementById('win-banner').classList.add('visible');
+    if (phase === 'over') document.getElementById('stuck-banner').classList.add('visible');
+
+    refreshScores();
+    refreshUndoBtn();
+    return true;
+  } catch(e) { return false; }
+}
 
 // ═══════════════════════════════════════════════════════
 // TILE RENDERING
@@ -1068,6 +1176,11 @@ var UI = {
     settings.noUndo = !settings.noUndo;
     localStorage.setItem('evo2048_noUndo', settings.noUndo);
     document.getElementById('toggle-noundo').classList.toggle('on', settings.noUndo);
+  },
+  endGame() {
+    document.getElementById('stuck-banner').classList.remove('visible');
+    localStorage.removeItem('evo2048_game');
+    showGameOver();
   }
 };
 
@@ -1127,7 +1240,7 @@ window.addEventListener('load', () => {
   recomputeSize();
   buildBg();
   document.getElementById('best-el').textContent = best.toLocaleString();
-  G.startNew();
+  if (!restoreGameState()) G.startNew();
 });
 </script>
 </body>
