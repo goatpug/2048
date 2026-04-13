@@ -208,7 +208,13 @@
       gap: 8px;
     }
 
-    #undo-btn { flex: none; }
+    #undo-btn {
+      flex: none;
+      flex-direction: column;
+      gap: 2px;
+      height: auto;
+      padding: 6px 12px;
+    }
 
     /* ── STUCK BANNER ── */
     #stuck-banner {
@@ -456,7 +462,7 @@
           <div class="score-value" id="best-el">0</div>
         </div>
       </div>
-      <button id="undo-btn" class="btn" onclick="G.undo()">↩ (0)</button>
+      <button id="undo-btn" class="btn" onclick="G.undo()"><span class="score-label">Undo</span><span>↩ (0)</span></button>
     </div>
   </div>
 
@@ -1040,7 +1046,7 @@ function refreshScores() {
 
 function refreshUndoBtn() {
   const btn = document.getElementById('undo-btn');
-  btn.textContent = `↩ (${undoStack.length})`;
+  btn.innerHTML = `<span class="score-label">Undo</span><span>↩ (${undoStack.length})</span>`;
 }
 
 // ═══════════════════════════════════════════════════════
