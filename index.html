@@ -788,8 +788,8 @@ function applyMove(dir) {
       document.getElementById('stuck-banner').classList.add('visible');
     }
 
-    saveGameState();
     locked = false;
+    setTimeout(saveGameState, 0); // defer — don't block the move pipeline
     if (queuedMove) {
       const next = queuedMove;
       queuedMove = null;
@@ -903,12 +903,14 @@ var G = {
 function saveGameState() {
   if (phase === 'over' && undoStack.length === 0) return; // nothing to restore to
   try {
+    // Only persist the last 20 undo entries — full history doesn't need to survive a tab switch
+    const stackSlice = undoStack.slice(-20);
     localStorage.setItem('evo2048_game', JSON.stringify({
       board, score, moves, undos, topTile, creatures, wonShown,
       activeCrazy, activeNoUndo, phase,
       tiles: tiles.map(t => ({...t})),
       tileId,
-      undoStack: undoStack.map(s => ({
+      undoStack: stackSlice.map(s => ({
         board: s.board.map(r => [...r]),
         score: s.score,
         tiles: s.tiles.map(t => ({...t})),
