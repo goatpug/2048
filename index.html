@@ -201,20 +201,13 @@
     .tile.anim-spawn { animation: spawnIn 200ms ease forwards; }
     .tile.anim-pop   { animation: popMerge 220ms ease forwards; }
 
-    /* ── HEADER RIGHT ── */
-    #header-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
     #undo-btn {
-      flex: none;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 2px;
       height: auto;
+      min-height: 48px;
       padding: 6px 12px;
     }
 
@@ -453,23 +446,21 @@
         <span id="badge-noundo" class="mode-badge" title="No Undo active">🔒</span>
       </div>
     </div>
-    <div id="header-right">
-      <div id="scores">
-        <div class="score-box">
-          <div class="score-label">Score</div>
-          <div class="score-value" id="score-el">0</div>
-        </div>
-        <div class="score-box">
-          <div class="score-label">Best</div>
-          <div class="score-value" id="best-el">0</div>
-        </div>
+    <div id="scores">
+      <div class="score-box">
+        <div class="score-label">Score</div>
+        <div class="score-value" id="score-el">0</div>
       </div>
-      <button id="undo-btn" class="btn" onclick="G.undo()"><span class="score-label">Undo</span><span>↩ (0)</span></button>
+      <div class="score-box">
+        <div class="score-label">Best</div>
+        <div class="score-value" id="best-el">0</div>
+      </div>
     </div>
   </div>
 
-  <!-- WIN BANNER -->
+  <!-- BANNERS -->
   <div id="win-banner">🐋 Whale reached! Keep going for 🌌 Universe!</div>
+  <div id="stuck-banner">No moves left — <button class="btn-link" onclick="G.undo()">Undo</button> or <button class="btn-link" onclick="UI.endGame()">End Game</button></div>
 
   <!-- BOARD -->
   <div id="board-wrap">
@@ -478,13 +469,11 @@
     </div>
   </div>
 
-  <!-- STUCK BANNER -->
-  <div id="stuck-banner">No moves left — <button class="btn-link" onclick="G.undo()">Undo</button> or <button class="btn-link" onclick="UI.endGame()">End Game</button></div>
-
   <!-- CONTROLS -->
   <div id="controls">
     <button class="btn" onclick="G.confirmNew()">New 🦠</button>
     <button class="btn" onclick="UI.openMenu()">Menu</button>
+    <button id="undo-btn" class="btn" onclick="G.undo()"><span class="score-label">Undo</span><span>↩ (0)</span></button>
   </div>
 
 </div>
@@ -563,10 +552,10 @@ const TILES = {
   65536:  { emoji:'🌞', name:'Sun',      bg:'#b07800', fg:'#fff4b0' },
   131072: { emoji:'🌌', name:'Universe', bg:'#160040', fg:'#d0a0ff', cosmic:true },
 };
-const MYSTERY = { emoji:'❓', name:'???', bg:'#06060f', fg:'#7090ff', cosmic:true };
+const MYSTERY = { emoji:'🐐', name:'Goat', bg:'#000000', fg:'#ffd700', cosmic:true };
 
 function tileData(v) { return TILES[v] || MYSTERY; }
-function fmtVal(v)   { return v >= 262144 ? '???' : v.toLocaleString(); }
+function fmtVal(v)   { return v.toLocaleString(); }
 
 // ═══════════════════════════════════════════════════════
 // BOARD SIZING
@@ -776,10 +765,12 @@ function applyMove(dir) {
     refreshScores();
     refreshUndoBtn();
 
-    // Win check
+    // Win check — show briefly then dismiss
     if (!wonShown && topTile >= 2048) {
       wonShown = true;
-      document.getElementById('win-banner').classList.add('visible');
+      const wb = document.getElementById('win-banner');
+      wb.classList.add('visible');
+      setTimeout(() => wb.classList.remove('visible'), 4000);
     }
 
     // Game over check — show banner instead of auto-triggering parade
@@ -954,7 +945,6 @@ function restoreGameState() {
     document.getElementById('undo-btn').style.display = activeNoUndo ? 'none' : '';
     document.getElementById('badge-crazy').classList.toggle('active', activeCrazy);
     document.getElementById('badge-noundo').classList.toggle('active', activeNoUndo);
-    if (wonShown) document.getElementById('win-banner').classList.add('visible');
     if (phase === 'over') document.getElementById('stuck-banner').classList.add('visible');
 
     refreshScores();
